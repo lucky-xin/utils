@@ -1,6 +1,5 @@
 package com.xin.utils.redis;
 
-
 import com.xin.utils.StringUtil;
 import com.xin.utils.redis.impl.RedisPoolImpl;
 import lombok.extern.log4j.Log4j;

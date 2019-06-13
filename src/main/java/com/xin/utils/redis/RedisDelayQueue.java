@@ -1,11 +1,11 @@
 package com.xin.utils.redis;
 
-import com.google.common.collect.Lists;
 import com.xin.utils.AssertUtil;
 import com.xin.utils.CollectionUtil;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Tuple;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +39,7 @@ public class RedisDelayQueue {
         try {
             lock.lock();
             while (true) {
-                List<Tuple> tuples = Lists.newArrayList(client.zrangeWithScores(key, firstIndex, firstIndex));
+                List<Tuple> tuples = new ArrayList<>(client.zrangeWithScores(key, firstIndex, firstIndex));
 
                 if (CollectionUtil.isEmpty(tuples)) {
                     condition.await(2, TimeUnit.SECONDS);
