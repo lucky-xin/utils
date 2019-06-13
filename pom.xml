@@ -160,6 +160,11 @@
             <artifactId>commons-beanutils</artifactId>
             <version>1.9.3</version>
         </dependency>
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.52</version>
+        </dependency>
         <!--
                 <dependency>
                     <groupId>org.wltea.ik-analyzer</groupId>
