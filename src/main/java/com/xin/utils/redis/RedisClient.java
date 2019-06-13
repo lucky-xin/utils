@@ -2,9 +2,8 @@ package com.xin.utils.redis;
 
 
 import com.xin.utils.StringUtil;
-import com.xin.utils.log.LogFactory;
 import com.xin.utils.redis.impl.RedisPoolImpl;
-import org.apache.log4j.Logger;
+import lombok.extern.log4j.Log4j;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -20,8 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @Description: redis 操作工具类
  * @date 2018-06-26 19:42
  */
+@Log4j
 public class RedisClient {
-    private static Logger logger = LogFactory.getLogger(RedisClient.class.getSimpleName());
     private static final Map<String, JedisPool> JEDIS_POOLS = new ConcurrentHashMap<>(50);
     public static final Properties CONFIG = new Properties();
 
@@ -47,7 +46,6 @@ public class RedisClient {
                 in = RedisClient.class.getResourceAsStream("/config/redis.properties");
                 CONFIG.load(in);
             } catch (Exception e) {
-                logger.info("读取redis配置文件异常", e);
                 throw new RedisException("读取redis配置文件异常，请检查/config/redis.properties" + e.getMessage());
             }
         }
