@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<indexes>
+
+    <index name="stock_info_index" type="stock_info" shards="5" replicas="1">
+        <field name="id" desc="id" primary-key="" type="string" length="10" index="true" store="false" analyze="false" />
+        <field name="stockCode" desc="股票代码" type="string" length="10" index="true" store="false" analyze="false" />
+        <field name="date" desc="日期" type="string" length="20" index="true" store="true" analyze="false" />
+        <field name="time" desc="日期" type="date" length="20" index="true" store="true" analyze="false" />
+        <field name="openPrice" desc="开盘价格" type="double" length="15" index="true" store="false" analyze="false" />
+        <field name="closePrice" desc="收盘价格" type="double" length="10" index="true" store="true" analyze="false" />
+        <field name="highPrice" desc="当日最高价" type="double" length="10" index="true" store="true" analyze="false" />
+        <field name="lowPrice" desc="当日最低价" type="double" length="10" index="true" store="false" analyze="false" defaultVal="0" boost="1"/>
+        <field name="volume" desc="当日交易量" type="long" length="20" index="true" store="false" analyze="false" defaultVal="0" boost="1"/>
+        <field name="growthRate" desc="增减情况" type="float" length="10" index="true" store="false" analyze="false" defaultVal="0" boost="1"/>
+        <field name="url" desc="获取信息的url" type="string" length="10" index="true" store="false" analyze="true" defaultVal="0" boost="1"/>
+    </index>
+
+    <index name="article_info_index" type="article_info" shards="5" replicas="1">
+        <field name="id" desc="id" primary-key="uuid" type="string" length="10" index="true" store="false" analyze="false" />
+        <field name="title" desc="文章标题" type="string" length="50" index="true" store="false" analyze="true" analyzer="ik_max_word" />
+        <field name="time" desc="日期" type="date" length="20" index="true" store="true" analyze="false" />
+        <field name="content" desc="文章内容" type="string" length="15" index="true" store="false" analyze="true" analyzer="ik_max_word" />
+        <field name="url" desc="获取信息的url" type="string" length="100" index="true" store="false" analyze="true" analyzer="ik_max_word"/>
+    </index>
+
+</indexes>
