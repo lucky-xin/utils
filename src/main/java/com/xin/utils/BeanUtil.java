@@ -1,12 +1,14 @@
 package com.xin.utils;
 
+import java.beans.BeanInfo;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * @author Luchaoxin
@@ -85,33 +87,54 @@ public class BeanUtil {
     /**
      * 通过反射把bean对象消息转换成map,对象属性为key,对象属性值为value
      *
-     * @param object 要转换的bean对象
+     * @param obj 要转换的bean对象
+     * @param convertFieldNameFunc 字段转换function
      * @return 返回map
      * @throws NoSuchMethodException
      * @throws IllegalAccessException
      * @throws InvocationTargetException
      */
-    public static Map<String, Object> toMap(Object object) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        Class<?> clazz = object.getClass();
-        Method getValueMethod;
-        Field[] fields = clazz.getDeclaredFields();
-        Map<String, Object> objValueMap = new HashMap<>(fields.length);
+    public static Map<String, Object> bean2Map(Object obj,
+                                               Function<String, String> convertFieldNameFunc) throws Exception {
 
-        for (Field field : fields) {
-            String fieldName = field.getName();
-            String getMethodName = BeanUtil.getGetMethodName(fieldName);
-
-            getValueMethod = clazz.getMethod(getMethodName);
-            Object fieldValue = getValueMethod.invoke(object);
-
-            if (fieldValue instanceof Date) {
-                SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                Date date = (Date) fieldValue;
-                fieldValue = format.format(date);
-            }
-            objValueMap.put(fieldName, fieldValue);
+        if (obj == null) {
+            return null;
         }
-        return objValueMap;
+        Map<String, Object> map = new HashMap<>(64);
+
+        BeanInfo beanInfo = Introspector.getBeanInfo(obj.getClass());
+        PropertyDescriptor[] propertyDescriptors = beanInfo.getPropertyDescriptors();
+        for (PropertyDescriptor property : propertyDescriptors) {
+            String fieldName = property.getName();
+            // 过滤class属性
+            if (!"class".equals(fieldName)
+                    || "serialVersionUID".equals(fieldName)) {
+                // 得到property对应的getter方法
+                Method getter = property.getReadMethod();
+                Object value = getter.invoke(obj);
+                String name = convertFieldNameFunc.apply(fieldName);
+                map.put(name, value);
+            }
+        }
+        return map;
+    }
+
+    public static <T> T map2Bean(Map<String, Object> map,
+                                 Class<T> clazz,
+                                 Function<String, String> function) throws Exception {
+        BeanInfo beanInfo = Introspector.getBeanInfo(clazz);
+        T instance = clazz.newInstance();
+        PropertyDescriptor[] propertyDescriptors = beanInfo.getPropertyDescriptors();
+        for (PropertyDescriptor property : propertyDescriptors) {
+            String key = function.apply(property.getName());
+            if (map.containsKey(key)) {
+                Object value = map.get(key);
+                // 得到property对应的setter方法
+                Method setter = property.getWriteMethod();
+                setter.invoke(instance, value);
+            }
+        }
+        return instance;
     }
 
 }

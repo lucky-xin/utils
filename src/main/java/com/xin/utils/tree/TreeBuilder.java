@@ -1,10 +1,12 @@
 package com.xin.utils.tree;
 
+import com.xin.utils.CollectionUtil;
 import lombok.extern.log4j.Log4j;
 
 import java.io.Serializable;
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * @author Luchaoxin
@@ -15,65 +17,8 @@ import java.util.function.Function;
 @Log4j
 public class TreeBuilder {
 
-    /**
-     * 两层循环实现建树
-     *
-     * @param treeNodes 传入的树节点列表
-     * @return
-     */
-    public static <I extends Serializable, T extends TreeNode<I, T>> List<T> build(List<T> treeNodes, I root) {
-        return build(treeNodes, root, null);
-    }
-
-    /**
-     * 两层循环实现建树
-     *
-     * @param treeNodes 传入的树节点列表
-     * @return
-     */
-    private static <I extends Serializable, T extends TreeNode<I, T>> List<T> build(List<T> treeNodes, I root, Function<T, T> function) {
-        if (Objects.isNull(function)) {
-            function = (t -> t);
-        }
-        T rootNode = null;
-        List<T> trees = new ArrayList<>();
-        for (T treeNode : treeNodes) {
-            boolean matchRootId = root.equals(treeNode.getParentId());
-            boolean isRootNode = root.equals(treeNode.getId());
-
-            if (matchRootId && !isRootNode) {
-                treeNode = function.apply(treeNode);
-                trees.add(treeNode);
-            }
-
-            if (isRootNode) {
-                rootNode = treeNode;
-            }
-
-            for (T it : treeNodes) {
-                if (root.equals(it.getId())) {
-                    continue;
-                }
-                if (it.getParentId().equals(treeNode.getId())) {
-                    if (Objects.isNull(treeNode.getChildren())) {
-                        treeNode.setChildren(new ArrayList<>());
-                    }
-                    treeNode.addChildren(function.apply(it));
-                }
-            }
-        }
-        if (Objects.nonNull(rootNode)) {
-            rootNode.setChildren(trees);
-            T finalRootNode = function.apply(rootNode);
-            return new ArrayList<T>(1) {{
-                add(finalRootNode);
-            }};
-        }
-        return trees;
-    }
-
     public static <IDTYPE extends Serializable, T extends TreeNode<IDTYPE, T>> Set<IDTYPE> getTreeNodeIds(List<TreeNode<IDTYPE, T>> treeNodes) {
-        if (Objects.isNull(treeNodes)) {
+        if (CollectionUtil.isEmpty(treeNodes)) {
             return new HashSet<>();
         }
         Set<IDTYPE> ids = new HashSet<>();
@@ -103,17 +48,48 @@ public class TreeBuilder {
      * @param treeNodes
      * @return
      */
-    public static <T extends TreeNode<? extends Serializable, T>> List<T> buildByRecursive(List<T> treeNodes, Object root) {
+    public static <IDTYPE extends Serializable, T extends TreeNode<IDTYPE, T>> T buildTree(List<T> treeNodes,
+                                                                                           IDTYPE root,
+                                                                                           Function<T, T> function) {
         List<T> trees = new ArrayList<>();
-        for (T treeNode : treeNodes) {
+        T rootNode = null;
+        Class<T> clazz = null;
+        if (Objects.isNull(function)) {
+            function = t -> t;
+        }
+        Set<T> enableTreeNodes = treeNodes.stream().filter(TreeNode::enable).collect(Collectors.toSet());
+        for (T treeNode : enableTreeNodes) {
+
+            // 找到根节点
+            if (root.equals(treeNode.getId())) {
+                rootNode = function.apply(treeNode);
+                continue;
+            }
+
             if (root.equals(treeNode.getParentId())) {
-                if (root.equals(treeNode.getId())) {
-                    continue;
+                if (Objects.isNull(clazz)) {
+                    clazz = (Class<T>) treeNode.getClass();
                 }
-                trees.add(findChildren(treeNode, treeNodes));
+
+                // 找到根节点的所有子节点
+                treeNode = findChildren(treeNode, enableTreeNodes, function);
+                //function函数处理之后可能返回null,返回null不加入树之中
+                if (Objects.nonNull(treeNode)) {
+                    trees.add(treeNode);
+                }
             }
         }
-        return trees;
+        if (Objects.isNull(rootNode) && Objects.nonNull(clazz)) {
+            try {
+                rootNode = clazz.newInstance();
+            } catch (Exception e) {
+                log.error("创建TreeNode异常，请确保有无参构造器", e);
+            }
+        }
+        if (Objects.nonNull(rootNode)) {
+            rootNode.setChildren(trees);
+        }
+        return rootNode;
     }
 
     /**
@@ -122,31 +98,31 @@ public class TreeBuilder {
      * @param treeNodes
      * @return
      */
-    public static <T extends TreeNode<? extends Serializable, T>> T findChildren(T treeNode, List<T> treeNodes) {
+    public static <IDTYPE extends Serializable, T extends TreeNode<IDTYPE, T>> T findChildren(T treeNode, Collection<T> treeNodes,
+                                                                                              Function<T, T> function) {
+        if (Objects.isNull(function)) {
+            function = t -> t;
+        }
+        treeNode = function.apply(treeNode);
+        if (Objects.isNull(treeNode) || Objects.isNull(treeNode.getId())) {
+            return null;
+        }
         for (T it : treeNodes) {
             if (treeNode.getId().equals(it.getParentId())) {
                 if (Objects.isNull(treeNode.getChildren())) {
                     treeNode.setChildren(new ArrayList<T>());
                 }
-                treeNode.addChildren(findChildren(it, treeNodes));
+                it = function.apply(it);
+                //function函数处理之后可能返回null,返回null不加入树之中
+                if (Objects.nonNull(it)) {
+                    // 找到根节点的所有子节点
+                    it = findChildren(it, treeNodes, function);
+                    if (Objects.nonNull(it)) {
+                        treeNode.addChildren(it);
+                    }
+                }
             }
         }
         return treeNode;
     }
-
-    /**
-     * 通过sysMenu创建树形节点
-     *
-     * @param treeDataList
-     * @param root
-     * @return
-     */
-    public static <IDTYPE extends Serializable, T extends TreeNode<IDTYPE, T>> List<T> buildTree(List<T> treeDataList, IDTYPE root) {
-        return buildTree(treeDataList, root, null);
-    }
-
-    public static <IDTYPE extends Serializable, T extends TreeNode<IDTYPE, T>> List<T> buildTree(List<T> treeDataList, IDTYPE root, Function<T, T> function) {
-        return build(treeDataList, root, function);
-    }
-
 }

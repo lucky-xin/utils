@@ -34,4 +34,13 @@ public interface TreeNode<IDTYPE extends Serializable, T extends TreeNode<IDTYPE
     List<T> getChildren();
 
     T setChildren(List<T> children);
+
+    /**
+     * 是否可用，如果返回false，则此节点以及子节点不会出现在树之中
+     *
+     * @return
+     */
+    default Boolean enable() {
+        return true;
+    }
 }

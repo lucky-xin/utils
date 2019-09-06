@@ -268,9 +268,9 @@ public class DateUtil {
             case 1:
                 Calendar calendar = Calendar.getInstance();
                 calendar.setTime(date1);
-                time = (long) calendar.get(1);
+                time = (long) calendar.get(Calendar.YEAR);
                 calendar.setTime(date2);
-                return time - (long) calendar.get(1);
+                return time - (long) calendar.get(Calendar.YEAR);
             case 2:
                 time = date1.getTime() / 1000L / 60L / 60L / 24L;
                 return time - date2.getTime() / 1000L / 60L / 60L / 24L;
