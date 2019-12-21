@@ -1,5 +1,7 @@
 package com.xin.utils.tree;
 
+import com.xin.utils.BeanUtil;
+import com.xin.utils.CollectionUtil;
 import lombok.extern.log4j.Log4j;
 
 import java.io.Serializable;
@@ -46,6 +48,12 @@ public class TreeHolder<IDTYPE extends Serializable, T extends TreeNode<IDTYPE, 
      */
     private List<T> tree;
 
+    private T rootNode;
+
+    /**
+     * 当前目录树所有子节点id
+     */
+    private Set<IDTYPE> childrenIds;
 
     private AtomicBoolean alreadyBuild = new AtomicBoolean(false);
 
@@ -76,6 +84,7 @@ public class TreeHolder<IDTYPE extends Serializable, T extends TreeNode<IDTYPE, 
         this.root = root;
         this.treeNodes = new TreeSet<>(comparator);
         this.treeNodeIds = new HashSet<>(treeDataList.size());
+        this.childrenIds = new HashSet<>(treeDataList.size());
         if (Objects.isNull(function)) {
             function = t -> t;
         }
@@ -83,13 +92,25 @@ public class TreeHolder<IDTYPE extends Serializable, T extends TreeNode<IDTYPE, 
         this.function = function.andThen(treeNode -> {
             treeNodes.add(treeNode);
             treeNodeIds.add(treeNode.getId());
+            if (!Objects.equals(root, treeNode.getId())) {
+                childrenIds.add(treeNode.getId());
+            }
             return treeNode;
         });
     }
 
     private void buildTree() {
         if (alreadyBuild.compareAndSet(false, true)) {
-            tree = TreeBuilder.buildTree(treeDataList, root, function);
+            rootNode = TreeBuilder.buildTree(treeDataList, root, function);
+            if (root.equals(rootNode.getId())) {
+                tree = new ArrayList<>(1);
+                tree.add(rootNode);
+            } else {
+                List<T> children = rootNode.getChildren();
+                if (CollectionUtil.isNotEmpty(children)) {
+                    tree = new ArrayList<>(children);
+                }
+            }
         }
     }
 
@@ -100,6 +121,9 @@ public class TreeHolder<IDTYPE extends Serializable, T extends TreeNode<IDTYPE, 
      */
     public Set<T> getTreeNodes() {
         buildTree();
+        if (Objects.isNull(treeNodes)) {
+            return new HashSet<>();
+        }
         return Collections.unmodifiableSet(treeNodes);
     }
 
@@ -110,6 +134,9 @@ public class TreeHolder<IDTYPE extends Serializable, T extends TreeNode<IDTYPE, 
      */
     public Set<IDTYPE> getTreeNodeIds() {
         buildTree();
+        if (Objects.isNull(treeNodes)) {
+            return new HashSet<>();
+        }
         return Collections.unmodifiableSet(treeNodeIds);
     }
 
@@ -120,6 +147,33 @@ public class TreeHolder<IDTYPE extends Serializable, T extends TreeNode<IDTYPE, 
      */
     public List<T> getTree() {
         buildTree();
+        if (Objects.isNull(treeNodes)) {
+            return new ArrayList<>();
+        }
         return Collections.unmodifiableList(tree);
+    }
+
+    /**
+     * 获取目录树跟你的信息，会拿到根节点，以及根节点下面所有子节点，使用unmodifiableList包装返回结果禁止对tree进行编辑
+     *
+     * @return
+     */
+    public T getRootNode() {
+        buildTree();
+        T instance = BeanUtil.deepCopy(rootNode);
+        return instance;
+    }
+
+    /**
+     * 获取目录树的所有子节点id，使用unmodifiableSet包装返回结果禁止对treeNodeIds进行编辑
+     *
+     * @return
+     */
+    public Set<IDTYPE> getChildrenIds() {
+        buildTree();
+        if (Objects.isNull(treeNodes)) {
+            return new HashSet<>();
+        }
+        return Collections.unmodifiableSet(childrenIds);
     }
 }

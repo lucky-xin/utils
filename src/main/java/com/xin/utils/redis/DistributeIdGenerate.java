@@ -9,11 +9,11 @@ import redis.clients.jedis.JedisPool;
  * @Description: 分布式id生成工具
  * @date 2019-01-03 19:08
  */
-public class DistributeIdGenerator {
+public class DistributeIdGenerate {
 
     private JedisPool redisPool;
 
-    public DistributeIdGenerator(JedisPool redisPool) {
+    public DistributeIdGenerate(JedisPool redisPool) {
         this.redisPool = redisPool;
     }
 

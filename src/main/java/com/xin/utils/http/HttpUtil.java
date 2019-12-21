@@ -2,32 +2,34 @@ package com.xin.utils.http;
 
 import com.xin.utils.CollectionUtil;
 import com.xin.utils.StringUtil;
-import org.apache.http.*;
-import org.apache.http.client.HttpClient;
+import com.xin.utils.file.FileUtil;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.*;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.apache.log4j.Logger;
 
-import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+import static java.io.File.separator;
 
 /**
- * @author Luchaoxin
+ * @author Luchaoxin, cenzhongman
  * @version V1.0
  * @Description: http工具类
  * @date 15:37 2018-07-02
@@ -35,194 +37,653 @@ import java.util.Map;
 
 public class HttpUtil {
 
-    /**
-     * 请求超时时间
-     */
-    private static int timeout = 15000 * 2;
+    private static String defaultCharset = "utf-8";
+
+    private static Logger logger = Logger.getLogger(HttpUtil.class);
 
     /**
-     * 请求成功码
+     * 发送http get请求
      */
-    private static int succeed = 200;
+    public static String get(String url, Map<String, String> headers) throws IOException, URISyntaxException {
+        return get(url, headers, defaultCharset);
+    }
 
-    private static String UNKNOWN = "unknown";
 
-    private static String LOCAL_HOST = "127.0.0.1";
-
-    private static String IP_ADDRESS = "0:0:0:0:0:0:0:1";
-
-    private static CloseableHttpClient httpClient = HttpClients.createDefault();
-
-    public enum ParamType {
-        //请求参数为map
-        Request2Map,
-        //请求参数为json
-        Request2Json
+    /**
+     * 发送http get请求
+     */
+    public static String get(String url, HttpHost proxy) throws IOException {
+        return get(url, null, defaultCharset, proxy);
     }
 
     /**
-     * 以post方式发送请求
-     *
-     * @param url   请求url
-     * @param param 请求参数
-     * @param type  请求类型请看{@link ParamType}
-     * @return 返回请求结果
-     * @throws Exception
+     * 发送http get请求
      */
-    public static String post(String url, Object param, ParamType type) throws Exception {
-        return post(url, null, param, type);
+    public static String get(String url, Map<String, String> headers, HttpHost proxy) throws IOException {
+        return get(url, headers, defaultCharset, proxy);
+    }
+
+    public static String get(String url, Map<String, String> headers, String charset) throws IOException {
+        return get(url, headers, charset, null);
     }
 
     /**
-     * 以post方式发送请求
-     *
-     * @param url     请求url
-     * @param param   请求参数
-     * @param type    请求类型请看{@link ParamType}
-     * @param headMap 请求头key头部参数名，value为该头部值
-     * @return 返回请求结果
-     * @throws Exception
+     * 发送http get请求
      */
-    @SuppressWarnings("unchecked")
-    public static String post(String url, Map<String, String> headMap, Object param, ParamType type) throws Exception {
-        BasicCookieStore cookieStore = new BasicCookieStore();
+    public static String get(String url, Map<String, String> headers, String charset, HttpHost proxy) throws IOException {
+        if (charset == null) {
+            charset = defaultCharset;
+        }
+        HttpGet httpGet = new HttpGet(url);
+        //设置header
+        if (!CollectionUtil.isEmpty(headers)) {
+            headers.forEach(httpGet::setHeader);
+        }
+        return doRequest(httpGet, charset, proxy);
+    }
 
-        HttpClient client = HttpClients.custom().setDefaultCookieStore(cookieStore).build();
+    /**
+     * 发送http get请求
+     */
+    public static String get(String url, String charset) throws IOException {
+        return get(url, null, charset);
+    }
 
-        HttpUriRequest request = null;
+    /**
+     * 发送http get请求
+     */
+    public static String get(String url) throws IOException {
+        return get(url, null, defaultCharset);
+    }
+
+    /**
+     * 发送http get请求
+     */
+    public static String get(String url, Map<String, String> headers, Map<String, String> params) throws IOException, URISyntaxException {
+        return get(url, headers, params, defaultCharset);
+    }
+
+    /**
+     * 发送http get请求 带参数
+     */
+    public static String get(String url, Map<String, String> headers, Map<String, String> params, String charset) throws IOException, URISyntaxException {
+        if (charset == null) {
+            charset = defaultCharset;
+        }
+
+        URIBuilder uriBuilder = new URIBuilder(url);
+        HttpGet httpGet = null;
+        if (!CollectionUtil.isEmpty(params)) {
+            params.forEach(uriBuilder::setParameter);
+            httpGet = new HttpGet(uriBuilder.build());
+        } else {
+            httpGet = new HttpGet(url);
+        }
+        //设置header
+        if (!CollectionUtil.isEmpty(headers)) {
+            headers.forEach(httpGet::setHeader);
+        }
+        return doRequest(httpGet, charset, null);
+    }
+
+
+    /**
+     * 发送 com.xin.utils.http post 请求，参数以form表单键值对的形式提交。
+     */
+    public static String post(String url, Map<String, Object> params, String charset) throws IOException {
+        return post(url, params, null, charset);
+    }
+
+    /**
+     * 发送 com.xin.utils.http post 请求，参数以form表单键值对的形式提交。
+     */
+    public static String post(String url, Map<String, Object> params) throws IOException {
+        return post(url, params, null, defaultCharset);
+    }
+
+    /**
+     * 发送 com.xin.utils.http post 请求，参数以form表单键值对的形式提交。
+     */
+    public static String post(String url, HttpHost proxy) throws IOException {
+        return post(url, "", proxy);
+    }
+
+    /**
+     * 发送 com.xin.utils.http post 请求，参数以form表单键值对的形式提交。
+     */
+    public static String post(String url) throws IOException {
+        return post(url, "", null, defaultCharset);
+    }
+
+    /**
+     * 发送 com.xin.utils.http post 请求，参数以form表单键值对的形式提交。
+     */
+    public static String post(String url, Map<String, Object> params, Map<String, String> headers, String charset) throws IOException {
+        if (charset == null) {
+            charset = defaultCharset;
+        }
         HttpPost httpPost = new HttpPost(url);
 
-        RequestConfig requestConfig = RequestConfig.custom()
-                .setSocketTimeout(timeout)
-                .setConnectTimeout(timeout)
-                .build();
-
-        httpPost.setConfig(requestConfig);
-        if (headMap != null) {
-            headMap.forEach(httpPost::addHeader);
-        }
-        if (null != param) {
-            switch (type) {
-                case Request2Map:
-                    httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded;charset=UTF-8");
-                    httpPost.setEntity(new UrlEncodedFormEntity(getParam((Map<Object, Object>) param), "UTF-8"));
-                    break;
-                case Request2Json:
-                    httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/json;charset=UTF-8");
-                    httpPost.setEntity(new StringEntity(param.toString(), ContentType.create(
-                            ContentType.TEXT_PLAIN.getMimeType(), Consts.UTF_8)));
-                default:
-                    break;
-            }
+        //设置header
+        if (!CollectionUtil.isEmpty(headers)) {
+            headers.forEach(httpPost::setHeader);
         }
 
-        request = httpPost;
-        String result = null;
-        HttpResponse response = null;
-        response = client.execute(request);
-
-        if (response.getStatusLine().getStatusCode() == succeed) {
-            result = EntityUtils.toString(response.getEntity(), "utf-8");
+        //组织请求参数
+        List<NameValuePair> paramList = new ArrayList<>();
+        if (!CollectionUtil.isEmpty(params)) {
+            params.forEach((key, value) -> paramList.add(new BasicNameValuePair(key, StringUtil.toString(value))));
         }
 
-        return result;
+        httpPost.setEntity(new UrlEncodedFormEntity(paramList, charset));
+
+        return doRequest(httpPost, charset, null);
     }
 
-    /**
-     * 建发送参数
-     */
-    protected static List<NameValuePair> getParam(Map<Object, Object> parameterMap) {
-        List<NameValuePair> param = new ArrayList<NameValuePair>();
-        for (Object key : parameterMap.keySet()) {
-            param.add(new BasicNameValuePair(key.toString(), (String) parameterMap.get(key)));
-        }
-        return param;
-    }
 
     /**
-     * 获取HttpServletRequest之中的ip
+     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
      *
-     * @param request
+     * @param url
+     * @param json
+     * @return
+     * @throws IOException
+     */
+    public static String post(String url, String json, HttpHost proxy) throws IOException {
+        return post(url, json, null, defaultCharset, proxy);
+    }
+
+
+    /**
+     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     *
+     * @param url
+     * @param json
+     * @return
+     * @throws IOException
+     */
+    public static String post(String url, String json) throws IOException {
+        return post(url, json, null, defaultCharset);
+    }
+
+    /**
+     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     *
+     * @param url
+     * @param json
+     * @param headers
+     * @return
+     * @throws IOException
+     */
+    public static String post(String url, String json, Map<String, String> headers) throws IOException {
+        return post(url, json, headers, defaultCharset);
+    }
+
+    /**
+     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     *
+     * @param url
+     * @param json
+     * @param headers
+     * @return
+     * @throws IOException
+     */
+    public static String post(String url, String json, Map<String, String> headers, HttpHost proxy) throws IOException {
+        return post(url, json, headers, defaultCharset, proxy);
+    }
+
+    /**
+     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     *
+     * @param url
+     * @param json
+     * @param headers
+     * @param charset
+     * @return
+     * @throws IOException
+     */
+    public static String post(String url, String json, Map<String, String> headers, String charset) throws IOException {
+        return post(url, json, headers, charset, null);
+    }
+
+    /**
+     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     *
+     * @param url
+     * @param json
+     * @param headers
+     * @param charset
+     * @return
+     * @throws IOException
+     */
+    public static String post(String url, String json, Map<String, String> headers, String charset, HttpHost proxy) throws IOException {
+        if (charset == null) {
+            charset = defaultCharset;
+        }
+        HttpPost httpPost = new HttpPost(url);
+
+        //设置header
+        if (!CollectionUtil.isEmpty(headers)) {
+            headers.forEach(httpPost::setHeader);
+        }
+        //组织请求参数
+        StringEntity stringEntity = new StringEntity(json, charset);
+        httpPost.setEntity(stringEntity);
+        String content = doRequest(httpPost, charset, proxy);
+
+        return content;
+    }
+
+    /**
+     * 发送 com.xin.utils.http put 请求，参数以原生字符串进行提交
+     *
+     * @param url
      * @return
      */
-    public static String getIpAddr(HttpServletRequest request) {
-        String ipAddress = request.getHeader("x-forwarded-for");
-        if (ipAddress == null || ipAddress.length() == 0 || UNKNOWN.equalsIgnoreCase(ipAddress)) {
-            ipAddress = request.getHeader("Proxy-Client-IP");
+    public static String put(String url, String json) throws IOException {
+        return post(url, json, null, defaultCharset);
+    }
+
+    /**
+     * 发送 com.xin.utils.http put 请求，参数以原生字符串进行提交
+     *
+     * @param url
+     * @param charset
+     * @return
+     */
+    public static String put(String url, String json, String charset) throws IOException {
+        return post(url, json, null, charset);
+    }
+
+    /**
+     * 发送 com.xin.utils.http put 请求，参数以原生字符串进行提交
+     *
+     * @param url
+     * @param charset
+     * @return
+     */
+    public static String put(String url, String json, Map<String, String> headers, String charset) throws IOException {
+        if (charset == null) {
+            charset = defaultCharset;
         }
-        if (ipAddress == null || ipAddress.length() == 0 || UNKNOWN.equalsIgnoreCase(ipAddress)) {
-            ipAddress = request.getHeader("WL-Proxy-Client-IP");
+        HttpPut httpPut = new HttpPut(url);
+
+        //设置header
+        if (!CollectionUtil.isEmpty(headers)) {
+            headers.forEach(httpPut::setHeader);
         }
-        if (ipAddress == null || ipAddress.length() == 0 || UNKNOWN.equalsIgnoreCase(ipAddress)) {
-            ipAddress = request.getRemoteAddr();
-            if (LOCAL_HOST.equals(ipAddress) || IP_ADDRESS.equals(ipAddress)) {
-                // 根据网卡取本机配置的IP
-                InetAddress inet = null;
-                try {
-                    inet = InetAddress.getLocalHost();
-                    ipAddress = inet.getHostAddress();
-                } catch (UnknownHostException e) {
+
+        //组织请求参数
+        StringEntity stringEntity = new StringEntity(json, charset);
+        httpPut.setEntity(stringEntity);
+        String content = doRequest(httpPut, charset, null);
+
+        return content;
+    }
+
+    /**
+     * 发送 com.xin.utils.http put 请求，参数以form表单键值对的形式提交。
+     *
+     * @param url
+     * @return
+     */
+    public static String put(String url, Map<String, Object> params, Map<String, String> headers) throws IOException {
+        return put(url, params, headers, defaultCharset);
+    }
+
+    /**
+     * 发送 com.xin.utils.http put 请求，参数以form表单键值对的形式提交。
+     *
+     * @param url
+     * @return
+     */
+    public static String put(String url, Map<String, Object> params) throws IOException {
+        return put(url, params, null, defaultCharset);
+    }
+
+    /**
+     * 发送 com.xin.utils.http put 请求，参数以form表单键值对的形式提交。
+     *
+     * @param url
+     * @param charset
+     * @return
+     */
+    public static String put(String url, Map<String, Object> params, Map<String, String> headers, String charset) throws IOException {
+        if (charset == null) {
+            charset = defaultCharset;
+        }
+        HttpPut httpPut = new HttpPut(url);
+        //设置header
+        if (!CollectionUtil.isEmpty(headers)) {
+            headers.forEach(httpPut::setHeader);
+        }
+
+        //组织请求参数
+        List<NameValuePair> paramList = new ArrayList<>();
+        if (!CollectionUtil.isEmpty(params)) {
+            params.forEach((key, value) -> paramList.add(new BasicNameValuePair(key, StringUtil.toString(value))));
+        }
+
+        httpPut.setEntity(new UrlEncodedFormEntity(paramList, charset));
+        String content = doRequest(httpPut, charset, null);
+
+        return content;
+    }
+
+    /**
+     * 发送http delete请求
+     */
+    public static String delete(String url) throws IOException {
+        return delete(url, null, defaultCharset);
+    }
+
+    /**
+     * 发送http delete请求
+     */
+    public static String delete(String url, String charset) throws IOException {
+        return delete(url, null, charset);
+    }
+
+    /**
+     * 发送http delete请求
+     */
+    public static String delete(String url, Map<String, String> headers, String charset) throws IOException {
+        if (charset == null) {
+            charset = defaultCharset;
+        }
+        HttpDelete httpDelete = new HttpDelete(url);
+        //设置header
+        if (!CollectionUtil.isEmpty(headers)) {
+            headers.forEach(httpDelete::setHeader);
+        }
+        String content = doRequest(httpDelete, charset, null);
+        return content;
+    }
+
+    public static String postFromUrlEncode(String url, Map<String, String> params, Map<String, String> forms) throws IOException, URISyntaxException {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/x-www-form-urlencoded");
+        return postFromUrlEncode(url, params, forms, headers, defaultCharset);
+    }
+
+    public static String postFromUrlEncode(String url, Map<String, String> params, Map<String, String> forms, String charset) throws IOException, URISyntaxException {
+        return postFromUrlEncode(url, params, forms, new HashMap<>(), charset);
+    }
+
+    public static String postFromUrlEncode(String url, Map<String, String> params, Map<String, String> forms, Map<String, String> headers, String charset) throws IOException, URISyntaxException {
+        if (charset == null) {
+            charset = defaultCharset;
+        }
+
+        URIBuilder uriBuilder = new URIBuilder(url);
+        params.forEach(uriBuilder::setParameter);
+
+        HttpPost httpPost = new HttpPost(uriBuilder.build());
+
+        //设置header
+        if (!CollectionUtil.isEmpty(headers)) {
+            headers.forEach(httpPost::setHeader);
+        }
+
+        List<NameValuePair> nameValuePairs = new ArrayList<>();
+        forms.forEach((k, v) -> {
+            nameValuePairs.add(new BasicNameValuePair(k, v));
+        });
+        httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, charset));
+
+        return doRequest(httpPost, charset, null);
+    }
+
+    /**
+     * 发送 com.xin.utils.http post 请求，支持文件上传
+     */
+    public static String postForm(String url, Map<String, String> params, List<File> files, Map<String, String> headers, String charset) throws IOException {
+        if (charset == null) {
+            charset = defaultCharset;
+        }
+        HttpPost httpPost = new HttpPost(url);
+
+        //设置header
+        if (!CollectionUtil.isEmpty(headers)) {
+            headers.forEach(httpPost::setHeader);
+        }
+
+        MultipartEntityBuilder mEntityBuilder = MultipartEntityBuilder.create();
+        mEntityBuilder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+        mEntityBuilder.setCharset(Charset.forName(charset));
+
+        // 普通参数
+        ContentType contentType = ContentType.create("text/plain", Charset.forName(charset));
+        if (!CollectionUtil.isEmpty(params)) {
+            params.forEach((key, value) -> mEntityBuilder.addTextBody(key, value, contentType));
+        }
+        //二进制参数
+        if (files != null && files.size() > 0) {
+            for (File file : files) {
+                mEntityBuilder.addBinaryBody("com.xin.utils.file", file);
+            }
+        }
+        httpPost.setEntity(mEntityBuilder.build());
+        String content = doRequest(httpPost, charset, null);
+        return content;
+    }
+
+    private static String doRequest(HttpRequestBase httpRequestBase, String charset, HttpHost proxy) throws IOException {
+        String content;
+        CloseableHttpClient closeableHttpClient = HttpClients.createDefault();
+        CloseableHttpResponse httpResponse = null;
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setSocketTimeout(10000)
+                .setConnectTimeout(10000)
+                .setConnectionRequestTimeout(10000)
+                .setProxy(proxy)
+                .build();
+        httpRequestBase.setConfig(requestConfig);
+        try {
+            //响应信息
+            httpResponse = closeableHttpClient.execute(httpRequestBase);
+            HttpEntity entity = httpResponse.getEntity();
+            content = EntityUtils.toString(entity, charset);
+        } finally {
+            closeClient(closeableHttpClient);
+            closeResponse(httpResponse);
+        }
+        return content;
+    }
+
+    private static void closeResponse(CloseableHttpResponse httpResponse) {
+        try {
+            if (httpResponse != null) {
+                httpResponse.close();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static void closeClient(CloseableHttpClient closeableHttpClient) {
+        try {  //关闭连接、释放资源
+            closeableHttpClient.close();
+        } catch (Exception e) {
+            logger.error("HttpUtil关闭连接失败", e);
+        }
+    }
+
+    /**
+     * 解析出url参数中的键值对
+     * 如 "index.jsp?Action=del&id=123"，解析出Action:del,id:123存入map中
+     *
+     * @param url url地址
+     * @return url请求参数部分
+     */
+    public static Map<String, String> getUrlParams(String url) {
+        Map<String, String> mapRequest = new HashMap<>();
+
+        if (StringUtil.isEmpty(url)) {
+            return mapRequest;
+        }
+        String[] arrSplit = null;
+
+        String strUrlParam = truncateUrlPage(url);
+        if (StringUtil.isEmpty(strUrlParam)) {
+            return mapRequest;
+        }
+        arrSplit = strUrlParam.split("[&]");
+        for (String strSplit : arrSplit) {
+            String[] arrSplitEqual = null;
+            arrSplitEqual = strSplit.split("[=]");
+
+            if (arrSplitEqual.length > 1) {
+                mapRequest.put(arrSplitEqual[0], arrSplitEqual[1]);
+
+            } else {
+                if (!"".equals(arrSplitEqual[0])) {
+                    mapRequest.put(arrSplitEqual[0], "");
                 }
             }
         }
-        int ipMaxLen = 15;
-        // 对于通过多个代理的情况，第一个IP为客户端真实IP,多个IP按照','分割
-        if (ipAddress != null && ipAddress.length() > ipMaxLen) {
-            // = 15
-            if (ipAddress.indexOf(StringUtil.COLON) > 0) {
-                ipAddress = ipAddress.substring(0, ipAddress.indexOf(","));
+        return mapRequest;
+    }
+
+    /**
+     * 去掉url中的路径，留下请求参数部分
+     *
+     * @param strURL url地址
+     * @return url请求参数部分
+     */
+    private static String truncateUrlPage(String strURL) {
+        String strAllParam = null;
+        String[] arrSplit = null;
+
+        strURL = strURL.trim();
+
+        arrSplit = strURL.split("[?]");
+        if (strURL.length() > 1) {
+            if (arrSplit.length > 1) {
+                if (arrSplit[1] != null) {
+                    strAllParam = arrSplit[1];
+                }
             }
         }
-        return ipAddress;
+
+        return strAllParam;
     }
 
-    /**
-     * 以get方式发送请求
-     *
-     * @param url 请求url
-     * @return 请求结果
-     * @throws IOException
-     */
-    public static String get(String url) throws IOException {
-        return get(url, null);
-    }
-
-    /**
-     * 以get方式发送请求
-     *
-     * @param url     url 请求url
-     * @param headMap 请求头参数，请求头key头部参数名，value为该头部值
-     * @return
-     * @throws IOException
-     */
-    public static String get(String url, Map<String, String> headMap) throws IOException {
-        String content = "";
-        CloseableHttpResponse response = null;
-
-        try {
-            HttpGet get = new HttpGet(url);
-            if (!CollectionUtil.isEmpty(headMap)) {
-                headMap.forEach(get::setHeader);
-            }
-
-            RequestConfig config = RequestConfig.custom()
-                    .setConnectionRequestTimeout(timeout)
-                    .setConnectTimeout(timeout)
-                    .setSocketTimeout(timeout)
-                    .build();
-
-            get.setConfig(config);
-            response = httpClient.execute(get);
-            HttpEntity entity = response.getEntity();
-            content = EntityUtils.toString(entity);
-            EntityUtils.consume(entity);
-        } finally {
+    public static String getUrlParamsByMap(Map<String, Object> map) {
+        if (CollectionUtil.isEmpty(map)) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("&");
+        Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, Object> entry = iterator.next();
+            String value = StringUtil.toString(entry.getValue());
             try {
-                response.close();
-            } catch (Exception e) {
+                sb.append(entry.getKey()).append("=").append(URLEncoder.encode(value, "utf-8"));
+            } catch (UnsupportedEncodingException e) {
+                logger.error("map转换url异常", e);
+            }
+            if (iterator.hasNext()) {
+                sb.append("&");
             }
         }
 
-        return content;
+        return sb.toString();
+    }
+
+    public static String getUrlParamsByMapWithOurEncode(Map<String, Object> map) {
+        if (CollectionUtil.isEmpty(map)) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("?");
+        Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, Object> entry = iterator.next();
+            String value = StringUtil.toString(entry.getValue());
+            sb.append(entry.getKey()).append("=").append(value);
+            if (iterator.hasNext()) {
+                sb.append("&");
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 下载文件或图片，使用文件自身的文件名
+     *
+     * @param urlString 下载链接
+     */
+    public static void download(String urlString, File downloadFile) throws IOException {
+        download(urlString, downloadFile.getParent(), downloadFile.getName());
+    }
+
+    /**
+     * 下载文件或图片，使用文件自身的文件名
+     *
+     * @param urlString    下载链接
+     * @param downloadPath 下载路径
+     */
+    public static void download(String urlString, String downloadPath) throws IOException {
+        download(urlString, downloadPath, "");
+    }
+
+    /**
+     * 下载文件或图片
+     *
+     * @param urlString    下载链接
+     * @param downloadPath 下载路径
+     * @param saveName     保存的文件名
+     */
+    public static void download(String urlString, String downloadPath, String saveName) throws IOException {
+        URL url;
+        String fileName;
+        String savePath;
+
+        // 若下载文件夹不存在创建文件夹
+        if (!FileUtil.exists(downloadPath)) {
+            FileUtil.mkdirs(downloadPath);
+        }
+
+        // 文件名包含路径，抛出异常
+        if (saveName.contains("\\") || saveName.contains("/")) {
+            throw new IllegalArgumentException("名字不应包含路径");
+        }
+
+        // 为下载文件夹添加后缀
+        if (!downloadPath.endsWith("\\") && !downloadPath.endsWith("/")) {
+            downloadPath = downloadPath + separator;
+        }
+
+        url = new URL(urlString);
+        DataInputStream dataInputStream = new DataInputStream(url.openStream());
+
+        URLConnection uc = url.openConnection();
+
+        // 下载名不存在，使用默认名字
+        if ("".equals(saveName)) {
+            try {
+                fileName = uc.getHeaderField("Content-Disposition");
+                fileName = new String(fileName.getBytes(StandardCharsets.ISO_8859_1), "GBK");
+                fileName = URLDecoder.decode(fileName.substring(fileName.indexOf("filename=") + 9), "UTF-8");
+            } catch (NullPointerException e) {
+                fileName = urlString.replaceAll("^.*[/\\\\]", "");
+            }
+            saveName = fileName;
+        }
+
+        savePath = downloadPath + saveName;
+
+        FileOutputStream fileOutputStream = new FileOutputStream(savePath);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        byte[] buffer = new byte[1024];
+        int length;
+
+        while ((length = dataInputStream.read(buffer)) > 0) {
+            output.write(buffer, 0, length);
+        }
+        byte[] context = output.toByteArray();
+        fileOutputStream.write(output.toByteArray());
+        dataInputStream.close();
+        fileOutputStream.close();
     }
 }

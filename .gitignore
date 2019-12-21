@@ -16,5 +16,5 @@ out/
 *.iml
 /.idea
 *.class
-*.log
+*.com.xin.utils.log
 target/

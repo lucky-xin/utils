@@ -1,10 +1,7 @@
 package com.xin.utils;
 
-import org.junit.Test;
-
 import java.util.Collection;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -57,18 +54,4 @@ public class AssertUtil {
             throw new IllegalArgumentException(errorMessage);
         }
     }
-
-    @Test
-    public void testAssertUtil(){
-        Map<String,String> map = null;//new HashMap<String,String>();
-//        map.put("ll","kk");
-//        AssertUtil.checkNotNull(map,"map must not be null");
-        try {
-            checkNotEmpty(map,"map不能为空！");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        System.out.println("014023D02E4312473684".length());
-    }
-
 }

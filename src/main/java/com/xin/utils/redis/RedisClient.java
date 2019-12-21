@@ -45,6 +45,7 @@ public class RedisClient {
                 in = RedisClient.class.getResourceAsStream("/config/redis.properties");
                 CONFIG.load(in);
             } catch (Exception e) {
+                log.info("读取redis配置文件异常", e);
                 throw new RedisException("读取redis配置文件异常，请检查/config/redis.properties" + e.getMessage());
             }
         }
@@ -78,4 +79,11 @@ public class RedisClient {
         RedisPoolImpl redisPool = new RedisPoolImpl(config, ip, port, password);
         return redisPool;
     }
+
+    public static void close(Jedis jedis) {
+        if (jedis != null) {
+            jedis.close();
+        }
+    }
+
 }

@@ -10,7 +10,7 @@ import java.util.stream.Stream;
  * @author Luchaoxin
  * @version V 4.0.0
  * @Description java集合, 数组操作util
- * @date 2015年9月27日 下午4:28:50
+ * @date 2017年9月27日 下午4:28:50
  */
 
 public class CollectionUtil {
@@ -81,6 +81,18 @@ public class CollectionUtil {
 
     public static <E> boolean isEmpty(E[] elements) {
         return (elements == null || elements.length == 0);
+    }
+
+    public static <E> boolean isNotEmpty(Collection<E> collection) {
+        return !isEmpty(collection);
+    }
+
+    public static <K, V> boolean isNotEmpty(Map<K, V> map) {
+        return !isEmpty(map);
+    }
+
+    public static <E> boolean isNotEmpty(E[] elements) {
+        return !isEmpty(elements);
     }
 
     public static <E> int size(List<E> list) {
@@ -414,6 +426,22 @@ public class CollectionUtil {
         return isEmpty(list) ? defaultValue : StringUtil.toDouble(list.get(index), defaultValue);
     }
 
+    public static <E> Set<E> forSet(E... elements) {
+        Set<E> es = new HashSet<>(elements.length);
+        for (E element : elements) {
+            es.add(element);
+        }
+        return es;
+    }
+
+    public static <E> List<E> forList(E... elements) {
+        List<E> es = new ArrayList<>(elements.length);
+        for (E element : elements) {
+            es.add(element);
+        }
+        return es;
+    }
+
     /**
      * 求数组之和
      *
@@ -599,11 +627,11 @@ public class CollectionUtil {
         Object tempObject = null;
         if (instance instanceof Map) {
             iterator = ((Map) instance).entrySet().iterator();
-            tempObject = DeepCopyUtil.deepCopy(instance);
+            tempObject = BeanUtil.deepCopy(instance);
             ((Map) tempObject).clear();
         } else if (instance instanceof Collection) {
             iterator = ((Collection) instance).iterator();
-            tempObject = DeepCopyUtil.deepCopy(instance);
+            tempObject = BeanUtil.deepCopy(instance);
             ((Collection) tempObject).clear();
         } else {
             return;
@@ -679,7 +707,7 @@ public class CollectionUtil {
      * @return 返回Collection并集
      */
     public static <E> Collection<E> union(Collection<E> a, Collection<E> b) {
-        Collection<E> copyB = DeepCopyUtil.deepCopy(b);
+        Collection<E> copyB = BeanUtil.deepCopy(b);
         Set<E> set = new HashSet<E>(b);
         Iterator<E> iterator = a.iterator();
         while (iterator.hasNext()) {
@@ -700,7 +728,7 @@ public class CollectionUtil {
      * @return 返回Collection交集
      */
     public static <E> Collection<E> intersection(Collection<E> a, Collection<E> b) {
-        Collection<E> copyB = DeepCopyUtil.deepCopy(b);
+        Collection<E> copyB = BeanUtil.deepCopy(b);
         Set<E> set = new HashSet<E>();
         Iterator<E> iterator = a.iterator();
         while (iterator.hasNext()) {

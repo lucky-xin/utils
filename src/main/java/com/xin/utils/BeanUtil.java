@@ -3,12 +3,17 @@ package com.xin.utils;
 import java.beans.BeanInfo;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Luchaoxin
@@ -87,7 +92,7 @@ public class BeanUtil {
     /**
      * 通过反射把bean对象消息转换成map,对象属性为key,对象属性值为value
      *
-     * @param obj 要转换的bean对象
+     * @param obj                  要转换的bean对象
      * @param convertFieldNameFunc 字段转换function
      * @return 返回map
      * @throws NoSuchMethodException
@@ -96,22 +101,59 @@ public class BeanUtil {
      */
     public static Map<String, Object> bean2Map(Object obj,
                                                Function<String, String> convertFieldNameFunc) throws Exception {
+        return bean2Map(obj, convertFieldNameFunc, false, null);
+    }
+
+    public static Map<String, Object> bean2Map(Object obj,
+                                               Function<String, String> convertFieldNameFunc,
+                                               boolean ignoreNullFileValue,
+                                               String[] ignoreFields) throws Exception {
 
         if (obj == null) {
             return null;
         }
         Map<String, Object> map = new HashMap<>(64);
 
+        if (Objects.isNull(convertFieldNameFunc)) {
+            convertFieldNameFunc = t -> t;
+        }
+
         BeanInfo beanInfo = Introspector.getBeanInfo(obj.getClass());
         PropertyDescriptor[] propertyDescriptors = beanInfo.getPropertyDescriptors();
+        boolean ignoreFieldsIsNull = ignoreFields == null;
+        if (ignoreFieldsIsNull) {
+            ignoreFields = new String[]{"class", "serialVersionUID"};
+        }
+        Set<String> ignoreFieldSet = Stream.of(ignoreFields).collect(Collectors.toSet());
+        if (!ignoreFieldsIsNull) {
+            ignoreFieldSet.add("class");
+            ignoreFieldSet.add("serialVersionUID");
+        }
         for (PropertyDescriptor property : propertyDescriptors) {
             String fieldName = property.getName();
             // 过滤class属性
-            if (!"class".equals(fieldName)
-                    || "serialVersionUID".equals(fieldName)) {
-                // 得到property对应的getter方法
-                Method getter = property.getReadMethod();
+            Iterator<String> iterator = ignoreFieldSet.iterator();
+            boolean shouldContinue = false;
+            while (iterator.hasNext()) {
+                String ignoreField = iterator.next();
+                if (Objects.equals(ignoreField, fieldName)) {
+                    iterator.remove();
+                    shouldContinue = true;
+                    break;
+                }
+            }
+            if (shouldContinue) {
+                continue;
+            }
+
+            // 得到property对应的getter方法
+            Method getter = property.getReadMethod();
+            if (Objects.nonNull(getter)) {
+                getter.setAccessible(true);
                 Object value = getter.invoke(obj);
+                if (ignoreNullFileValue && null == value) {
+                    continue;
+                }
                 String name = convertFieldNameFunc.apply(fieldName);
                 map.put(name, value);
             }
@@ -124,17 +166,163 @@ public class BeanUtil {
                                  Function<String, String> function) throws Exception {
         BeanInfo beanInfo = Introspector.getBeanInfo(clazz);
         T instance = clazz.newInstance();
+        if (Objects.isNull(function)) {
+            function = t -> t;
+        }
         PropertyDescriptor[] propertyDescriptors = beanInfo.getPropertyDescriptors();
         for (PropertyDescriptor property : propertyDescriptors) {
             String key = function.apply(property.getName());
             if (map.containsKey(key)) {
                 Object value = map.get(key);
+                if (Objects.isNull(value)) {
+                    continue;
+                }
                 // 得到property对应的setter方法
                 Method setter = property.getWriteMethod();
-                setter.invoke(instance, value);
+                Method getter = property.getReadMethod();
+                Class<?> paramType = value.getClass();
+                Class<?> fieldType = null;
+                try {
+                    if (Objects.isNull(setter)) {
+                        if (Objects.nonNull(getter)) {
+                            fieldType = getter.getReturnType();
+                            String setMethodName = getter.getName().replaceFirst("g", "s");
+                            setter = clazz.getDeclaredMethod(setMethodName, getter.getReturnType());
+                        }
+                    }
+
+                    if (Objects.nonNull(setter)) {
+                        if (Objects.nonNull(fieldType) && !paramType.equals(fieldType)) {
+                            if (Collection.class.isAssignableFrom(fieldType) && Collection.class.isAssignableFrom(paramType)) {
+                                if (Set.class.isAssignableFrom(fieldType)) {
+                                    value = new LinkedHashSet<>((Collection<Object>) value);
+                                } else if (List.class.isAssignableFrom(fieldType)) {
+                                    value = new ArrayList<>((Collection<Object>) value);
+                                }
+                            }
+                        }
+
+                        if (setter.getParameterTypes().length != 1
+                                || !setter.getParameterTypes()[0].isAssignableFrom(value.getClass())) {
+                            continue;
+                        }
+                        setter.setAccessible(true);
+                        setter.invoke(instance, value);
+                    }
+                } catch (Exception ignore) {
+
+                }
+
             }
         }
         return instance;
     }
 
+    public static Field getField(Class<?> clazz, String fieldName) {
+        try {
+            Field field = clazz.getField(fieldName);
+            return field;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 根据字符串生成驼峰式类名
+     * article_info_index类名为ArticleInfoIndex
+     *
+     * @param str
+     * @return
+     */
+    public static String getClassName(String str) {
+        AssertUtil.checkNotEmpty(str, "生成class名称字符串不能为空或者null.");
+
+        String regex = "_";
+
+        if (!str.contains(regex)) {
+            return toUpperCaseFirstChar(str);
+        }
+
+        StringBuilder className = new StringBuilder();
+
+        String[] names = str.split(regex);
+        for (String name : names) {
+
+            if (name.isEmpty()) {
+                continue;
+            }
+            className.append(toUpperCaseFirstChar(name));
+        }
+        return className.toString();
+    }
+
+    private static String toUpperCaseFirstChar(String str) {
+        char firstChar = str.charAt(0);
+        if (firstChar >= lowerA && firstChar <= lowerZ) {
+            firstChar -= 32;
+            return firstChar + str.substring(1);
+        }
+        return str;
+    }
+
+    public static <T> T deepCopy(T src) {
+        ByteArrayOutputStream byteOut = null;
+        ObjectOutputStream out = null;
+        ByteArrayInputStream byteIn = null;
+        ObjectInputStream in = null;
+        try {
+            byteOut = new ByteArrayOutputStream();
+            out = new ObjectOutputStream(byteOut);
+            byteIn = new ByteArrayInputStream(byteOut.toByteArray());
+            in = new ObjectInputStream(byteIn);
+            @SuppressWarnings("unchecked") T dest = (T) in.readObject();
+            return dest;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            close(byteOut);
+            close(out);
+            close(byteIn);
+            close(in);
+        }
+    }
+
+    private static void close(AutoCloseable closeable) {
+        try {
+            closeable.close();
+        } catch (Exception e) {
+        }
+    }
+
+    public static <T> boolean isEmpty(T object, String... excludeFile) throws Exception {
+        if (Objects.isNull(object)) {
+            return true;
+        }
+        Class<T> clazz = (Class<T>) object.getClass();
+        BeanInfo beanInfo = Introspector.getBeanInfo(clazz);
+        Stream<PropertyDescriptor> stream = Stream.of(beanInfo.getPropertyDescriptors());
+        Set<PropertyDescriptor> descriptorSet = null;
+        if (Objects.nonNull(excludeFile)) {
+            descriptorSet = stream.filter(item -> {
+                for (String s : excludeFile) {
+                    if (s.equals(item.getName())) {
+                        return true;
+                    }
+                }
+                return false;
+            }).collect(Collectors.toSet());
+        } else {
+            descriptorSet = stream.collect(Collectors.toSet());
+        }
+        for (PropertyDescriptor propertyDescriptor : descriptorSet) {
+            Method getter = propertyDescriptor.getReadMethod();
+            if (Objects.nonNull(getter)) {
+                Object value = getter.invoke(object);
+                if (Objects.nonNull(value)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }
