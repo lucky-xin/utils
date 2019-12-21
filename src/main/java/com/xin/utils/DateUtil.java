@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
  * @Description: 日期操作工具类
  * @date 2018-08-23 21:46
  */
-public class DateTimeUtil {
+public class DateUtil {
     private final static String DEFAULT_FORMAT = "yyyy-MM-dd HH:mm:ss";
     private final static String LINK = "[T_]";
     private static final String DATE_REGEX_S = "[\\D]*[\\d]{10}[\\D]*";
