@@ -128,35 +128,35 @@ public class HttpUtil {
 
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以form表单键值对的形式提交。
+     * 发送  post 请求，参数以form表单键值对的形式提交。
      */
     public static String post(String url, Map<String, Object> params, String charset) throws IOException {
         return post(url, params, null, charset);
     }
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以form表单键值对的形式提交。
+     * 发送  post 请求，参数以form表单键值对的形式提交。
      */
     public static String post(String url, Map<String, Object> params) throws IOException {
         return post(url, params, null, defaultCharset);
     }
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以form表单键值对的形式提交。
+     * 发送  post 请求，参数以form表单键值对的形式提交。
      */
     public static String post(String url, HttpHost proxy) throws IOException {
         return post(url, "", proxy);
     }
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以form表单键值对的形式提交。
+     * 发送 post 请求，参数以form表单键值对的形式提交。
      */
     public static String post(String url) throws IOException {
         return post(url, "", null, defaultCharset);
     }
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以form表单键值对的形式提交。
+     * 发送  post 请求，参数以form表单键值对的形式提交。
      */
     public static String post(String url, Map<String, Object> params, Map<String, String> headers, String charset) throws IOException {
         if (charset == null) {
@@ -182,7 +182,7 @@ public class HttpUtil {
 
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     * 发送  post 请求，参数以json字符串进行提交
      *
      * @param url
      * @param json
@@ -195,7 +195,7 @@ public class HttpUtil {
 
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     * 发送 post 请求，参数以json字符串进行提交
      *
      * @param url
      * @param json
@@ -207,7 +207,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     * 发送  post 请求，参数以json字符串进行提交
      *
      * @param url
      * @param json
@@ -220,7 +220,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     * 发送  post 请求，参数以json字符串进行提交
      *
      * @param url
      * @param json
@@ -233,7 +233,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     * 发送  post 请求，参数以json字符串进行提交
      *
      * @param url
      * @param json
@@ -247,7 +247,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http post 请求，参数以json字符串进行提交
+     * 发送  post 请求，参数以json字符串进行提交
      *
      * @param url
      * @param json
@@ -275,7 +275,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http put 请求，参数以原生字符串进行提交
+     * 发送  put 请求，参数以原生字符串进行提交
      *
      * @param url
      * @return
@@ -285,7 +285,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http put 请求，参数以原生字符串进行提交
+     * 发送  put 请求，参数以原生字符串进行提交
      *
      * @param url
      * @param charset
@@ -296,7 +296,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http put 请求，参数以原生字符串进行提交
+     * 发送  put 请求，参数以原生字符串进行提交
      *
      * @param url
      * @param charset
@@ -322,7 +322,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http put 请求，参数以form表单键值对的形式提交。
+     * 发送  put 请求，参数以form表单键值对的形式提交。
      *
      * @param url
      * @return
@@ -332,7 +332,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http put 请求，参数以form表单键值对的形式提交。
+     * 发送  put 请求，参数以form表单键值对的形式提交。
      *
      * @param url
      * @return
@@ -342,7 +342,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http put 请求，参数以form表单键值对的形式提交。
+     * 发送  put 请求，参数以form表单键值对的形式提交。
      *
      * @param url
      * @param charset
@@ -435,7 +435,7 @@ public class HttpUtil {
     }
 
     /**
-     * 发送 com.xin.utils.http post 请求，支持文件上传
+     * 发送  post 请求，支持文件上传
      */
     public static String postForm(String url, Map<String, String> params, List<File> files, Map<String, String> headers, String charset) throws IOException {
         if (charset == null) {

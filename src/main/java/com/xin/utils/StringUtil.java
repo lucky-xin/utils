@@ -724,4 +724,85 @@ public class StringUtil {
         }
         return result.toString();
     }
+
+    public static List<String[]> parsePairs(String str, String listSplit, String pairSplit) {
+        String[] tmp = split(str, listSplit);
+        if (tmp == null) {
+            return new ArrayList<>(0);
+        }
+        List<String[]> r = new ArrayList<String[]>(tmp.length);
+        for (int i = 0; i < tmp.length; i++) {
+            String p = tmp[i];
+            String[] pair = split(p, pairSplit);
+            if (pair == null || pair.length != 2) {
+                throw new RuntimeException("Wrong pair [ " + p + " ]");
+            }
+            if (pair[0] == null || pair[1] == null) {
+                throw new RuntimeException("Wrong pair [ " + p + " ]");
+            }
+            String[] kv = new String[] { pair[0].trim(), pair[1].trim() };
+            r.add(kv);
+        }
+        return r;
+    }
+
+    public static String[] split(String str, String split) {
+        List<String> strings = new ArrayList<String>(16);
+        StringTokenizer token = new StringTokenizer(str, split, false);
+        while (token.hasMoreElements()) {
+            strings.add(token.nextToken());
+        }
+        String[] strArray = new String[strings.size()];
+        return strings.toArray(strArray);
+    }
+
+    public static String toString(List<String> list ,String seperator) {
+        if(list == null ){
+            return null;
+        }
+        StringBuffer bf = new StringBuffer();
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) {
+                bf.append(seperator);
+            }
+            bf.append(list.get(i));
+        }
+        return bf.toString();
+
+    }
+
+    public static String toString(String[] strs,String seperator) {
+        if(strs == null ){
+            return null;
+        }
+        StringBuffer bf = new StringBuffer();
+        for (int i = 0; i < strs.length; i++) {
+            if (i > 0) {
+                bf.append(seperator);
+            }
+            bf.append(strs[i]);
+        }
+        return bf.toString();
+
+    }
+
+    /**
+     * 输入一个正整数，输出mode后，一定长度的数值
+     * @param n
+     * @param mode
+     * @param padLength
+     * @return
+     */
+    public static String modeStr(int n , int mode  , int padLength){
+        if(padLength < 1 ){
+            throw new IllegalArgumentException("padLength must larget than 0 .");
+        }
+        String leave =   String.valueOf(n % mode) ;
+        while(leave.length() < padLength ){
+            leave = "0" + leave;
+        }
+
+        return leave;
+
+    }
 }

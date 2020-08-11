@@ -1,5 +1,7 @@
 package com.xin.utils.file;
 
+import lombok.experimental.UtilityClass;
+
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,13 +14,10 @@ import java.util.zip.ZipOutputStream;
  * Zip压缩/解压缩工具类
  * 实现对目标路径及其子路径下的所有文件及空目录的压缩
  *
- * @author 岑忠满
+ * @author Luchaoxin
  */
+@UtilityClass
 public class ZipUtil {
-    /**
-     * 缓冲器大小
-     */
-    private static final int BUFFER = 512;
 
     /**
      * 解压缩方法
@@ -27,9 +26,10 @@ public class ZipUtil {
      * @param dstPath     解压目标路径
      * @return 是否解压成功
      */
-    public static boolean unzip(String zipFileName, String dstPath) {
+    public void unzip(String zipFileName, String dstPath) throws IOException {
         try (ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(zipFileName))) {
             ZipEntry zipEntry;
+            int BUFFER = 512;
             // 缓冲器
             byte[] buffer = new byte[BUFFER];
             // 每次读出来的长度
@@ -47,22 +47,13 @@ public class ZipUtil {
 
                 // 若是文件，则需创建该文件
                 File file = createFile(dstPath, zipEntry.getName());
-
-                OutputStream outputStream = new FileOutputStream(file);
-
-                while ((readLength = zipInputStream.read(buffer, 0, BUFFER)) != -1) {
-                    outputStream.write(buffer, 0, readLength);
+                try (OutputStream outputStream = new FileOutputStream(file)) {
+                    while ((readLength = zipInputStream.read(buffer, 0, BUFFER)) != -1) {
+                        outputStream.write(buffer, 0, readLength);
+                    }
                 }
-                outputStream.close();
             }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            return false;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
         }
-        return true;
     }
 
     /**
@@ -73,16 +64,16 @@ public class ZipUtil {
      * @param zipFileName 目标压缩文件
      * @return 是否压缩成功
      */
-    public static boolean zip(String srcPath, String zipFileName) {
+    public void zip(String srcPath, String zipFileName) throws IOException {
         File srcFile = new File(srcPath);
         List<File> fileList = getAllFiles(srcFile);
+        int BUFFER = 512;
         byte[] buffer = new byte[BUFFER];
         ZipEntry zipEntry;
         int readLength;
 
-        ZipOutputStream zipOutputStream = null;
-        try {
-            zipOutputStream = new ZipOutputStream(new FileOutputStream(zipFileName));
+        try (OutputStream os = new FileOutputStream(zipFileName);
+             ZipOutputStream zipOutputStream = new ZipOutputStream(os)) {
             for (File file : fileList) {
                 if (file.isFile()) {
                     //若是文件，则压缩这个文件
@@ -90,36 +81,18 @@ public class ZipUtil {
                     zipEntry.setSize(file.length());
                     zipEntry.setTime(file.lastModified());
                     zipOutputStream.putNextEntry(zipEntry);
-
-                    InputStream inputStream = new BufferedInputStream(new FileInputStream(file));
-
-                    while ((readLength = inputStream.read(buffer, 0, BUFFER)) != -1) {
-                        zipOutputStream.write(buffer, 0, readLength);
+                    try (InputStream inputStream = new BufferedInputStream(new FileInputStream(file))) {
+                        while ((readLength = inputStream.read(buffer, 0, BUFFER)) != -1) {
+                            zipOutputStream.write(buffer, 0, readLength);
+                        }
                     }
-
-                    inputStream.close();
                 } else {
                     //若是目录（即空目录）则将这个目录写入zip条目
                     zipEntry = new ZipEntry(getRelativePath(srcPath, file) + "/");
                     zipOutputStream.putNextEntry(zipEntry);
                 }
             }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            return false;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        } finally {
-            try {
-                if (zipOutputStream != null) {
-                    zipOutputStream.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
-        return true;
     }
 
     /**

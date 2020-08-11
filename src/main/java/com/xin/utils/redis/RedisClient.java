@@ -40,9 +40,7 @@ public class RedisClient {
      */
     public static JedisPool getJedisPool() throws RedisException {
         if (CONFIG.isEmpty()) {
-            InputStream in = null;
-            try {
-                in = RedisClient.class.getResourceAsStream("/config/redis.properties");
+            try (InputStream in = RedisClient.class.getResourceAsStream("/config/redis.properties")) {
                 CONFIG.load(in);
             } catch (Exception e) {
                 log.info("读取redis配置文件异常", e);
