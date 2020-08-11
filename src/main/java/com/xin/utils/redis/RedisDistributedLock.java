@@ -4,6 +4,7 @@ import com.xin.utils.AssertUtil;
 import com.xin.utils.StringUtil;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Transaction;
+import redis.clients.jedis.params.SetParams;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -42,7 +43,11 @@ public class RedisDistributedLock {
         long end = System.currentTimeMillis() + timeUnit.toMillis(acquireTimeout);
 
         do {
-            String result = client.set(lockKey, uuid, "NX", "PX", lockExpireTime);
+
+            SetParams params = new SetParams()
+                    .ex((int) timeUnit.toSeconds(lockExpireTime))
+                    .nx();
+            String result = client.set(lockKey, uuid, params);
             if (successStatus.equalsIgnoreCase(result)) {
                 return uuid;
             }
